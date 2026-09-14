@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nested Gantt</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f5f7;--sf:#fff;--ink:#17191f;--ink2:#4b5160;--mut:#8a90a0;--ln:#e4e6eb;--ln2:#eef0f3;--acc:#2f55d4;--red:#d9534f;--rowh:44px;--labw:260px}
+*{box-sizing:border-box}
+body{margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;font:14px Manrope,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}button{cursor:pointer}
+.top{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--sf);border-bottom:1px solid var(--ln);flex-wrap:wrap}
+.crumbs{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.back{border:1px solid var(--ln);background:var(--sf);width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--ink2)}
+.back:hover{background:var(--bg)}
+.parent{color:var(--mut);cursor:pointer;white-space:nowrap}.parent:hover{color:var(--ink)}
+.sep{color:var(--mut)}
+.title{font-weight:700;font-size:18px;border:0;background:none;padding:4px 6px;margin-left:-6px;border-radius:4px;min-width:60px;outline:0}
+.title:focus{background:var(--bg)}
+.stat{color:var(--mut);white-space:nowrap}.stat b{color:var(--ink)}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--ln);background:var(--sf);padding:7px 12px;border-radius:6px;font-weight:600;color:var(--ink2);line-height:1}
+.btn:hover{background:var(--bg);color:var(--ink)}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:#fff}.btn.pri:hover{background:#2a2d36}
+.btn.del{color:var(--red)}.btn.del:hover{background:#fdf0ef}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.zoom{display:inline-flex;border:1px solid var(--ln);border-radius:6px;overflow:hidden}
+.zoom button{border:0;background:var(--sf);width:32px;height:32px;color:var(--ink2)}.zoom button+button{border-left:1px solid var(--ln)}.zoom button:hover{background:var(--bg)}
+.wrap{flex:1;min-height:0;padding:16px 20px 20px;display:flex}
+.gantt{flex:1;background:var(--sf);border:1px solid var(--ln);border-radius:10px;overflow:auto;position:relative}
+.inner{display:grid;grid-template-columns:var(--labw) 1fr;min-width:max-content}
+.corner{position:sticky;top:0;left:0;z-index:4;background:var(--sf);border-right:1px solid var(--ln);border-bottom:1px solid var(--ln);height:56px;display:flex;align-items:flex-end;padding:0 16px 8px;color:var(--mut);font-size:12px}
+.corner span:first-child{flex:1}
+.head{position:sticky;top:0;z-index:3;background:var(--sf);border-bottom:1px solid var(--ln);height:56px}
+.maj,.min{position:relative;height:28px}
+.maj .c,.min .c{position:absolute;top:0;height:28px;display:flex;align-items:center;white-space:nowrap;overflow:hidden}
+.maj .c{padding:0 10px;font-weight:600;font-size:12px;color:var(--ink2);border-left:1px solid var(--ln)}
+.min .c{justify-content:center;font-size:11px;color:var(--mut);border-left:1px solid var(--ln2)}
+.min .we{background:#fafbfc}.min .td{color:var(--red);font-weight:700}
+.labels{position:sticky;left:0;z-index:2;background:var(--sf);border-right:1px solid var(--ln)}
+.lab{height:var(--rowh);display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--ln2);cursor:pointer}
+.lab:hover,.lab.sel{background:#f8f9fb}
+.sw{width:8px;height:8px;border-radius:2px;flex:none}
+.lab .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.lab .m,.lab .go{color:var(--mut);font-size:12px;white-space:nowrap}
+.lab .go{opacity:0}.lab:hover .go{opacity:1}
+.body{position:relative}
+.row{height:var(--rowh);position:relative;border-bottom:1px solid var(--ln2)}
+.gl,.wb,.tl{position:absolute;top:0;bottom:0;pointer-events:none}
+.gl{width:1px;background:var(--ln2)}.gl.mj{background:var(--ln)}.wb{background:#fafbfc}
+.tl{width:1px;background:var(--red);z-index:1}
+.tl:before{content:"";position:absolute;top:0;left:-3px;width:7px;height:7px;border-radius:50%;background:var(--red)}
+.bar{position:absolute;top:10px;height:24px;border-radius:5px;background:var(--c);cursor:grab;user-select:none;touch-action:none;display:flex;align-items:center;overflow:hidden}
+.bar.l1{top:12px;height:20px}
+.bar:hover{box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 25%,transparent)}
+.bar.sel{box-shadow:0 0 0 2px var(--sf),0 0 0 4px var(--c)}
+.bar.drag{cursor:grabbing;box-shadow:0 6px 16px rgba(23,25,31,.18);z-index:2}
+.fill{position:absolute;inset:0 auto 0 0;background:rgba(0,0,0,.22);pointer-events:none}
+.bar .t{position:relative;padding:0 10px;font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.done .t{text-decoration:line-through;opacity:.85}
+.h{position:absolute;top:0;bottom:0;width:10px;cursor:ew-resize}.h.l{left:0}.h.r{right:0}
+.empty{grid-column:1/-1;padding:48px 24px;text-align:center;color:var(--mut)}.empty b{display:block;color:var(--ink);margin-bottom:4px}
+.ins{position:fixed;right:20px;bottom:20px;width:320px;max-width:calc(100vw - 40px);background:var(--sf);border:1px solid var(--ln);border-radius:10px;box-shadow:0 12px 32px rgba(23,25,31,.12);padding:16px;z-index:10;display:none}
+.ins.open{display:block}
+.ins .hd{display:flex;align-items:center;margin-bottom:12px}.ins .hd span{flex:1;color:var(--mut);font-size:12px}
+.x{border:0;background:none;color:var(--mut);width:28px;height:28px;border-radius:50%}.x:hover{background:var(--bg);color:var(--ink)}
+.f{display:grid;gap:4px;margin-bottom:10px}.f label{font-size:12px;color:var(--mut)}
+.f input[type=text],.f input[type=date]{border:1px solid var(--ln);border-radius:6px;padding:8px 10px;background:var(--sf);width:100%;outline:0}
+.f input:focus{border-color:var(--acc);box-shadow:0 0 0 3px #e8edfb}
+.f2{grid-template-columns:1fr 1fr;gap:8px}.f2>div{display:grid;gap:4px}
+.rg{display:flex;align-items:center;gap:10px}.rg input{flex:1;accent-color:var(--acc)}.rg output{width:36px;text-align:right;color:var(--ink2)}
+.cols{display:flex;gap:6px}.cols button{width:22px;height:22px;border-radius:50%;border:2px solid transparent;background:var(--c)}.cols .on{border-color:var(--ink)}
+.ft{display:flex;justify-content:space-between;gap:8px;margin-top:4px}
+@media(max-width:720px){:root{--labw:170px;--rowh:40px}.top{padding:12px 14px}.wrap{padding:10px 12px 12px}.stat,.lab .m,.corner span+span{display:none}.title{font-size:16px}.ins{left:12px;right:12px;bottom:12px;width:auto;max-width:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="crumbs">
+    <button class="back" id="back" hidden aria-label="Back"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <span class="parent" id="parent" hidden></span><span class="sep" id="sep" hidden>/</span>
+    <input class="title" id="title" spellcheck="false" aria-label="Title">
+  </div>
+  <span class="stat" id="stat"></span>
+  <div class="acts">
+    <div class="zoom"><button id="zout" aria-label="Zoom out">−</button><button id="zin" aria-label="Zoom in">+</button></div>
+    <button class="btn" id="today">Today</button><button class="btn" id="link">Copy link</button><button class="btn" id="imp">Import</button><button class="btn" id="exp">Export</button><button class="btn pri" id="add">Add phase</button>
+  </div>
+</header>
+<main class="wrap"><div class="gantt" id="gantt"></div></main>
+<aside class="ins" id="ins">
+  <div class="hd"><span id="kind"></span><button class="x" id="close" aria-label="Close">✕</button></div>
+  <div class="f"><label for="name">Name</label><input type="text" id="name"></div>
+  <div class="f f2"><div><label for="start">Start</label><input type="date" id="start"></div><div><label for="end">End</label><input type="date" id="end"></div></div>
+  <div class="f"><label for="prog">Progress</label><div class="rg"><input type="range" id="prog" min="0" max="100" step="5"><output id="progOut"></output></div></div>
+  <div class="f" id="colF"><label>Colour</label><div class="cols" id="cols"></div></div>
+  <div class="ft"><button class="btn del" id="del">Delete</button><button class="btn" id="open">Open activities</button></div>
+</aside>
+<input type="file" id="file" accept="application/json" hidden>
+<script>
+(()=>{
+const PAL=['#3a4a6b','#5b7fc7','#5f9e86','#c39a5a','#b56f6f','#8b78b5','#6d8a99'],MO='Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' '),DOW='SMTWTFS';
+const uid=()=>Math.random().toString(36).slice(2,10);
+const A=(n,s,e,p=0)=>({id:uid(),name:n,start:s,end:e,progress:p});
+const P=(n,c,s,e,activities)=>({id:uid(),name:n,color:PAL[c],start:s,end:e,progress:0,activities});
+const S={level:1,open:null,sel:null,zoom:{1:8,2:40},project:{title:'Product launch',phases:[
+  P('Discovery',0,'2026-08-10','2026-09-04',[A('Stakeholder interviews','2026-08-10','2026-08-14',100),A('Competitive scan','2026-08-12','2026-08-21',100),A('Requirements brief','2026-08-24','2026-09-04',100)]),
+  P('Design',1,'2026-08-31','2026-10-02',[A('Wireframes','2026-08-31','2026-09-11',60),A('Visual system','2026-09-07','2026-09-18',20),A('Prototype & test','2026-09-21','2026-10-02')]),
+  P('Build',2,'2026-09-28','2026-11-13',[A('Backend services','2026-09-28','2026-10-23'),A('Front end','2026-10-05','2026-11-06'),A('Integration','2026-11-02','2026-11-13')]),
+  P('Testing',3,'2026-11-09','2026-11-27',[A('QA pass','2026-11-09','2026-11-20'),A('Bug fixing','2026-11-16','2026-11-27')]),
+  P('Launch',4,'2026-11-30','2026-12-11',[A('Release','2026-11-30','2026-12-04'),A('Post-launch review','2026-12-07','2026-12-11')])]}};
+
+// dates (local, no TZ drift)
+const D=s=>new Date(...s.split('-').map((v,i)=>i==1?v-1:+v)),F=d=>[d.getFullYear(),d.getMonth()+1,d.getDate()].map((v,i)=>i?String(v).padStart(2,'0'):v).join('-');
+const add=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n),diff=(a,b)=>Math.round((b-a)/864e5),mon=d=>add(d,-(d.getDay()+6)%7);
+const today=new Date(new Date().toDateString()),short=s=>{const d=D(s);return`${d.getDate()} ${MO[d.getMonth()]}`};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>`&#${c.charCodeAt()};`),$=id=>document.getElementById(id);
+
+// model
+const ph=()=>S.project.phases,cur=()=>ph().find(p=>p.id===S.open),rows=()=>S.level==1?ph():cur().activities,find=id=>rows().find(r=>r.id===id);
+const days=r=>diff(D(r.start),D(r.end))+1;
+const weighted=(rs,pf)=>{const t=rs.reduce((s,r)=>s+days(r),0);return t?Math.round(rs.reduce((s,r)=>s+pf(r)*days(r),0)/t):0}; // duration-weighted
+const pprog=p=>p.activities.length?weighted(p.activities,a=>a.progress):p.progress;
+const prog=r=>S.level==1?pprog(r):r.progress,color=r=>S.level==1?r.color:cur().color;
+const fit=p=>{const a=p.activities;if(a.length){p.start=[p.start,...a.map(x=>x.start)].sort()[0];p.end=[p.end,...a.map(x=>x.end)].sort().at(-1)}};
+const bounds=rs=>[rs.map(r=>r.start).sort()[0],rs.map(r=>r.end).sort().at(-1)];
+
+const range=()=>{
+  let s,e;
+  if(S.level==1){const[a,b]=rows().length?bounds(rows()):[F(today),F(add(today,30))];s=mon(add(D(a),-14));e=add(mon(add(D(b),21)),6)}
+  else{s=add(D(cur().start),-4);e=add(D(cur().end),8)}
+  if(today<s)s=S.level==1?mon(add(today,-7)):add(today,-2);
+  if(today>e)e=add(today,S.level==1?14:3);
+  return{s,e,W:(diff(s,e)+1)*S.zoom[S.level]}};
+
+const gantt=$('gantt');
+function render(){
+  const rs=rows(),{s,e,W}=range(),ppd=S.zoom[S.level],x=d=>diff(s,d)*ppd,L1=S.level==1;
+  let maj='',min='',grid='';
+  const cell=(a,b,txt)=>{a=Math.max(a,0);b=Math.min(b,W);maj+=`<div class="c" style="left:${a}px;width:${b-a}px">${txt}</div>`;grid+=`<div class="gl mj" style="left:${a}px"></div>`};
+  if(L1){
+    for(let m=new Date(s.getFullYear(),s.getMonth(),1);m<=e;m=new Date(m.getFullYear(),m.getMonth()+1,1))cell(x(m),x(new Date(m.getFullYear(),m.getMonth()+1,1)),`${MO[m.getMonth()]} ${m.getFullYear()}`);
+    for(let d=s;d<=e;d=add(d,7)){min+=`<div class="c${today>=d&&today<add(d,7)?' td':''}" style="left:${x(d)}px;width:${7*ppd}px">${ppd>=6?d.getDate():''}</div>`;grid+=`<div class="gl" style="left:${x(d)}px"></div>`}
+  }else{
+    for(let d=mon(s);d<=e;d=add(d,7))cell(x(d),x(add(d,7)),`Week of ${d.getDate()} ${MO[d.getMonth()]}`);
+    for(let d=s;d<=e;d=add(d,1)){const we=!(d.getDay()%6);
+      min+=`<div class="c${we?' we':''}${!diff(d,today)?' td':''}" style="left:${x(d)}px;width:${ppd}px">${ppd>=28?`${DOW[d.getDay()]} ${d.getDate()}`:ppd>=18?d.getDate():''}</div>`;
+      grid+=we?`<div class="wb" style="left:${x(d)}px;width:${ppd}px"></div>`:`<div class="gl" style="left:${x(d)}px"></div>`}
+  }
+  if(today>=s&&today<=e)grid+=`<div class="tl" style="left:${x(today)+ppd/2}px"></div>`;
+  const labs=rs.map(r=>`<div class="lab${r.id===S.sel?' sel':''}" data-id="${r.id}" tabindex="0" role="button"><span class="sw" style="background:${color(r)}"></span><span class="n">${esc(r.name)}</span><span class="m">${L1?r.activities.length+' · ':''}${prog(r)}%</span>${L1?'<span class="go">Open ›</span>':''}</div>`).join('');
+  const bars=rs.map(r=>`<div class="row"><div class="bar l${S.level}${r.id===S.sel?' sel':''}${prog(r)>=100?' done':''}" data-id="${r.id}" tabindex="0" style="--c:${color(r)};left:${x(D(r.start))}px;width:${days(r)*ppd}px" title="${esc(r.name)}: ${short(r.start)} – ${short(r.end)}"><div class="fill" style="width:${prog(r)}%"></div><span class="t">${esc(r.name)}</span><div class="h l"></div><div class="h r"></div></div></div>`).join('');
+  gantt.innerHTML=`<div class="inner"><div class="corner"><span>${L1?'Phase':'Activity'}</span><span>${L1?'Items · done':'Done'}</span></div><div class="head" style="width:${W}px"><div class="maj">${maj}</div><div class="min">${min}</div></div>${rs.length?`<div class="labels">${labs}</div><div class="body" style="width:${W}px">${grid}${bars}</div>`:`<div class="empty"><b>No ${L1?'phases':'activities'} yet</b>Add one to get started.</div>`}</div>`;
+
+  save();
+  // chrome
+  const L1h=S.level==1;['back','parent','sep'].forEach(i=>$(i).hidden=L1h);
+  $('parent').textContent=S.project.title;
+  const t=$('title');t.value=L1h?S.project.title:cur().name;t.style.width=Math.max(6,t.value.length+1)+'ch';
+  $('add').textContent=L1h?'Add phase':'Add activity';
+  $('stat').innerHTML=rs.length?`${bounds(rs).map(short).join(' – ')} &nbsp;·&nbsp; <b>${weighted(rs,prog)}%</b> done`:'';
+
+  // inspector
+  const r=find(S.sel);$('ins').classList.toggle('open',!!r);if(!r)return;
+  $('kind').textContent=L1h?'Phase':`Activity in ${cur().name}`;
+  $('name').value=r.name;$('start').value=r.start;$('end').value=r.end;
+  $('prog').value=prog(r);$('prog').disabled=L1h&&r.activities.length>0;$('progOut').textContent=prog(r)+'%';
+  $('colF').style.display=$('open').style.display=L1h?'':'none';
+  if(L1h)$('cols').innerHTML=PAL.map(c=>`<button style="--c:${c}" data-c="${c}" class="${c===r.color?'on':''}" aria-label="${c}"></button>`).join('');
+}
+
+// navigation
+const goIn=id=>{Object.assign(S,{open:id,level:2,sel:null});render();toToday(false)};
+const goOut=()=>{Object.assign(S,{sel:S.open,level:1,open:null});render()};
+const toToday=sm=>{const l=gantt.querySelector('.tl');if(!l)return;const lw=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--labw'));gantt.scrollTo({left:Math.max(0,parseFloat(l.style.left)+lw-gantt.clientWidth/2),behavior:sm?'smooth':'auto'})};
+$('back').onclick=$('parent').onclick=goOut;
+$('title').oninput=e=>{S.level==1?S.project.title=e.target.value:cur().name=e.target.value;e.target.style.width=Math.max(6,e.target.value.length+1)+'ch'};
+$('title').onchange=render;
+
+// inspector edits
+const edit=fn=>{const r=find(S.sel);if(r){fn(r);if(S.level==2)fit(cur());render()}};
+$('close').onclick=()=>{S.sel=null;render()};
+$('name').oninput=e=>{edit(r=>r.name=e.target.value);$('name').focus()};
+$('start').onchange=e=>edit(r=>{r.start=e.target.value;if(r.end<r.start)r.end=r.start});
+$('end').onchange=e=>edit(r=>{r.end=e.target.value;if(r.end<r.start)r.start=r.end});
+$('prog').oninput=e=>edit(r=>r.progress=+e.target.value);
+$('cols').onclick=e=>{const c=e.target.dataset.c;if(c)edit(r=>r.color=c)};
+$('del').onclick=()=>edit(r=>{if(!confirm(`Delete "${r.name}"?`))return;rows().splice(rows().indexOf(r),1);S.sel=null});
+$('open').onclick=()=>goIn(S.sel);
+
+// chart clicks / keys
+const act=el=>el.classList.contains('lab')&&S.level==1?goIn(el.dataset.id):(S.sel=el.dataset.id,render());
+gantt.onclick=e=>{const el=e.target.closest('.lab');if(el)act(el);else if(!e.target.closest('.bar')&&S.sel){S.sel=null;render()}};
+gantt.onkeydown=e=>{const el=e.target.closest('.lab,.bar');if(el&&(e.key=='Enter'||e.key==' ')){e.preventDefault();act(el)}};
+gantt.ondblclick=e=>{const b=e.target.closest('.bar');if(b&&S.level==1)goIn(b.dataset.id)};
+document.onkeydown=e=>{if(e.key=='Escape'){S.sel=null;render()}};
+
+// drag to move / resize
+let dg=null;
+gantt.onpointerdown=e=>{const el=e.target.closest('.bar'),r=el&&find(el.dataset.id);if(!r||e.button)return;
+  dg={r,el,x0:e.clientX,s:D(r.start),e:D(r.end),mode:e.target.classList.contains('h')?(e.target.classList.contains('l')?'l':'r'):'m',moved:false};el.setPointerCapture(e.pointerId);e.preventDefault()};
+gantt.onpointermove=e=>{if(!dg||(!dg.moved&&Math.abs(e.clientX-dg.x0)<3))return;
+  dg.moved=true;dg.el.classList.add('drag');
+  const ppd=S.zoom[S.level],dd=Math.round((e.clientX-dg.x0)/ppd);
+  let s=dg.mode=='r'?dg.s:add(dg.s,dd),en=dg.mode=='l'?dg.e:add(dg.e,dd);
+  if(dg.mode=='l'&&s>en)s=en;if(dg.mode=='r'&&en<s)en=s;
+  dg.r.start=F(s);dg.r.end=F(en);
+  Object.assign(dg.el.style,{left:diff(range().s,s)*ppd+'px',width:days(dg.r)*ppd+'px'})};
+gantt.onpointerup=gantt.onpointercancel=()=>{if(!dg)return;S.sel=dg.r.id;dg=null;if(S.level==2)fit(cur());render()};
+
+// toolbar
+$('add').onclick=()=>{
+  const rs=rows(),last=rs.at(-1),s=last?add(D(last.end),1):S.level==1?today:D(cur().start);
+  const n=S.level==1?P('New phase',rs.length%PAL.length,F(s),F(add(s,13)),[]):A('New activity',F(s),F(add(s,4)));
+  rs.push(n);S.sel=n.id;if(S.level==2)fit(cur());render();$('name').focus();$('name').select()};
+const zoom=k=>()=>{const[lo,hi]=S.level==1?[3,24]:[14,80];S.zoom[S.level]=Math.min(hi,Math.max(lo,S.zoom[S.level]*k));render()};
+$('zin').onclick=zoom(1.25);$('zout').onclick=zoom(.8);
+$('today').onclick=()=>toToday(true);
+$('exp').onclick=()=>{const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([JSON.stringify(S.project,null,2)],{type:'application/json'})),download:(S.project.title.replace(/[^\w-]+/g,'-').toLowerCase()||'project')+'.json'});a.click();URL.revokeObjectURL(a.href)};
+$('imp').onclick=()=>$('file').click();
+$('file').onchange=e=>{const f=e.target.files[0];e.target.value='';f?.text().then(t=>{const p=JSON.parse(t);if(!Array.isArray(p.phases))throw 0;
+  p.phases.forEach(x=>{x.id??=uid();x.color??=PAL[0];x.progress??=0;(x.activities??=[]).forEach(a=>{a.id??=uid();a.progress??=0})});
+  Object.assign(S,{project:p,level:1,open:null,sel:null});render()}).catch(()=>alert('Not a project export. Choose a JSON file created with Export.'))};
+
+// URL state: compact text -> deflate -> base64url in the hash
+const RS='\x1e',GS='\x1d',US='\x1f',E0=D('2000-01-01'),B=n=>n.toString(36),U=s=>{const n=parseInt(s,36);if(isNaN(n))throw 0;return n};
+const esc2=s=>s.replace(/[\\\x1d-\x1f]/g,c=>'\\'+({'\\':'\\','\x1d':'d','\x1e':'e','\x1f':'f'})[c]),unesc=s=>s.replace(/\\(.)/g,(_,c)=>({d:'\x1d',e:'\x1e',f:'\x1f'})[c]??c);
+const ser=()=>{const p=S.project,all=p.phases.flatMap(x=>[x,...x.activities]),ep=all.length?D(bounds(all)[0]):today;
+  const dt=r=>[B(diff(ep,D(r.start))),B(days(r)-1),B(r.progress)],ci=c=>{const i=PAL.indexOf(c);return i<0?c.slice(1):B(i)};
+  return[[esc2(p.title),B(diff(E0,ep))].join(US),...p.phases.map(x=>[esc2(x.name),ci(x.color),...dt(x)].join(US)+x.activities.map(a=>GS+[esc2(a.name),...dt(a)].join(US)).join(''))].join(RS)};
+const de=s=>{const[h,...ps]=s.split(RS),[t,e0]=h.split(US),ep=add(E0,U(e0));
+  const dt=(s,d,p)=>{const st=add(ep,U(s));return{start:F(st),end:F(add(st,U(d))),progress:U(p)}};
+  return{title:unesc(t),phases:ps.map(x=>{const[f,...as]=x.split(GS),[n,c,s,d,p]=f.split(US);
+    return{id:uid(),name:unesc(n),color:c.length==1?PAL[U(c)]:'#'+c,...dt(s,d,p),activities:as.map(a=>{const[n,s,d,p]=a.split(US);return{id:uid(),name:unesc(n),...dt(s,d,p)}})}})}};
+const b64=b=>btoa(b.reduce((s,c)=>s+String.fromCharCode(c),'')).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''),unb64=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt());
+const pipe=async(b,C)=>new Uint8Array(await new Response(new Blob([b]).stream().pipeThrough(new C('deflate-raw'))).arrayBuffer());
+const pack=async()=>{const raw=new TextEncoder().encode(ser());let out='r'+b64(raw);if(self.CompressionStream){const z='z'+b64(await pipe(raw,CompressionStream));if(z.length<out.length)out=z}return out};
+const unpack=async h=>{const b=unb64(h.slice(1));return de(new TextDecoder().decode(h[0]=='z'?await pipe(b,DecompressionStream):b))};
+let mine=false;
+const save=async()=>{const h='#'+await pack();try{history.replaceState(null,'',location.pathname+location.search+h)}catch{mine=true;location.hash=h}};
+const load=async()=>{const h=location.hash.slice(1);if(!h)return;try{S.project=await unpack(h);Object.assign(S,{level:1,open:null,sel:null})}catch{alert('This link holds no readable project data.')}render();toToday(false)};
+onhashchange=()=>mine?mine=false:load();
+$('link').onclick=async()=>{await save();const b=$('link'),u=location.href;try{await navigator.clipboard.writeText(u);b.textContent='Copied ✓';setTimeout(()=>b.textContent='Copy link',1500)}catch{prompt('Copy this link',u)}};
+
+render();toToday(false);load();
+})();
+</script>
+</body>
+</html>
