@@ -1,6 +1,6 @@
 # Nested Gantt Chart Tool
 
-A simple interactive online gantt chart tool that allows multiple nested gantt chart levels for greater task granularity.
+A simple interactive online gantt chart tool that allows multiple nested gantt chart levels for greater task granularity. Runs entirely in your browser; nothing is uploaded!
 
 **Use it:** https://robertmieta.github.io/nested-gantt/
 
